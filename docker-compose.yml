@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: artistpro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: artistpro
+      POSTGRES_PASSWORD: artistpro
+      POSTGRES_DB: artistpro
+    ports:
+      - "5437:5432"
+    volumes:
+      - artistpro-postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: artistpro-redis
+    restart: unless-stopped
+    ports:
+      - "6381:6379"
+    volumes:
+      - artistpro-redis-data:/data
+
+  # Local email catcher: the API sends real SMTP here; read the mail at http://localhost:8027.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: artistpro-mailpit
+    restart: unless-stopped
+    ports:
+      - "1027:1025" # SMTP
+      - "8027:8025" # web UI + API
+
+volumes:
+  artistpro-postgres-data:
+  artistpro-redis-data:

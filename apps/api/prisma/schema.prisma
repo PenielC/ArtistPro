@@ -1,0 +1,637 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  STAFF
+  FINANCE
+}
+
+enum CalendarEntryKind {
+  REHEARSAL
+  STUDIO
+  TRAVEL
+  RELEASE
+  MEETING
+  BLOCKED
+  OTHER
+}
+
+enum AiFeature {
+  BRIEFING
+  DRAFT
+  CONTENT
+  PRICING
+}
+
+enum AiGenerationStatus {
+  STREAMING
+  COMPLETED
+  REFUSED
+  FAILED
+}
+
+enum EmailKind {
+  INVOICE
+  QUOTE
+  CONTRACT
+  PAYMENT_RECEIPT
+  PAYMENT_ALERT
+  INVOICE_REMINDER
+}
+
+enum EmailStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+enum NotificationType {
+  PAYMENT_RECEIVED
+  EMAIL_FAILED
+  REMINDERS_SENT
+}
+
+enum PaymentProvider {
+  PAYNOW
+  TEST
+}
+
+enum PaymentAttemptStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
+enum BookingStatus {
+  NEW_ENQUIRY
+  QUALIFIED
+  QUOTE_SENT
+  NEGOTIATION
+  CONTRACT_SENT
+  DEPOSIT_PAID
+  CONFIRMED
+  EVENT
+  COMPLETED
+  PAYMENT_RECEIVED
+}
+
+model Organization {
+  id              String   @id @default(uuid())
+  name            String
+  currency        String   @default("USD")
+  // Overdue-invoice reminders: off until the owner turns them on; sent N days after the due date.
+  reminderEnabled Boolean  @default(false)
+  reminderDays    Int[]    @default([1, 7, 14])
+  // AI generations allowed per calendar month (UTC). Plan tiers can raise this later.
+  aiMonthlyLimit  Int      @default(100)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users             User[]
+  artists           Artist[]
+  bookings          Booking[]
+  clients           Client[]
+  quotes            Quote[]
+  invoices          Invoice[]
+  contracts         Contract[]
+  contractTemplates ContractTemplate[]
+  paymentAccounts   PaymentAccount[]
+  paymentAttempts   PaymentAttempt[]
+  emailMessages     EmailMessage[]
+  notifications     UserNotification[]
+  aiGenerations     AiGeneration[]
+  calendarEntries   CalendarEntry[]
+
+  @@map("organizations")
+}
+
+model User {
+  id                String   @id @default(uuid())
+  organizationId    String
+  email             String   @unique
+  passwordHash      String
+  firstName         String
+  lastName          String
+  role              UserRole @default(OWNER)
+  /// Secret for this user's read-only iCal subscription URL; null until they ask for one.
+  calendarFeedToken String?  @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  refreshTokens   RefreshToken[]
+  sentEmails      EmailMessage[]     @relation("EmailCreatedBy")
+  notifications   UserNotification[]
+  aiGenerations   AiGeneration[]
+  calendarEntries CalendarEntry[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Artist {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  // Public profile URL (/a/:slug) — unique across the whole platform, not just the organisation.
+  slug           String   @unique
+  category       String?
+  genres         String[] @default([])
+  tagline        String?
+  bio            String?
+  location       String?
+  photoUrl       String?
+  bookingEmail   String?
+  bookingPhone   String?
+  website        String?
+  instagram      String?
+  facebook       String?
+  tiktok         String?
+  youtube        String?
+  spotify        String?
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+  quotes          Quote[]
+  invoices        Invoice[]
+  contracts       Contract[]
+  epk             Epk?
+  calendarEntries CalendarEntry[]
+
+  @@index([organizationId])
+  @@map("artists")
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  organizationId String
+  artistId       String?
+  clientId       String?
+  clientName     String
+  clientEmail    String?
+  clientPhone    String?
+  eventType      String?
+  eventDate      DateTime?
+  venue          String?
+  fee            Decimal?      @db.Decimal(10, 2)
+  currency       String        @default("USD")
+  status         BookingStatus @default(NEW_ENQUIRY)
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  artist       Artist?      @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  client       Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  quotes       Quote[]
+  invoices     Invoice[]
+  contracts    Contract[]
+
+  @@index([organizationId])
+  @@index([artistId])
+  @@index([clientId])
+  @@map("bookings")
+}
+
+model Client {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  email          String?
+  phone          String?
+  company        String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
+  quotes       Quote[]
+  invoices     Invoice[]
+  contracts    Contract[]
+
+  @@index([organizationId])
+  @@map("clients")
+}
+
+model Quote {
+  id             String      @id @default(uuid())
+  organizationId String
+  artistId       String?
+  clientId       String?
+  bookingId      String?
+  number         Int
+  title          String
+  clientName     String
+  clientEmail    String?
+  currency       String      @default("USD")
+  status         QuoteStatus @default(DRAFT)
+  validUntil     DateTime?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  artist       Artist?        @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  client       Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  booking      Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  items        QuoteItem[]
+  invoice      Invoice?
+  contracts    Contract[]
+  emails       EmailMessage[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([artistId])
+  @@map("quotes")
+}
+
+model QuoteItem {
+  id          String  @id @default(uuid())
+  quoteId     String
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  position    Int     @default(0)
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+  @@map("quote_items")
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  organizationId String
+  artistId       String?
+  clientId       String?
+  bookingId      String?
+  quoteId        String?       @unique
+  number         Int
+  title          String
+  clientName     String
+  clientEmail    String?
+  currency       String        @default("USD")
+  exchangeRate   Decimal       @default(1) @db.Decimal(18, 8)
+  status         InvoiceStatus @default(DRAFT)
+  issueDate      DateTime      @default(now())
+  dueDate        DateTime?
+  notes          String?
+  // Unguessable token behind the client-facing /pay/:token page; null = no online payment link.
+  publicToken    String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  artist          Artist?          @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  client          Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  booking         Booking?         @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  quote           Quote?           @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  items           InvoiceItem[]
+  payments        InvoicePayment[]
+  paymentAttempts PaymentAttempt[]
+  emails          EmailMessage[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([artistId])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(14, 2)
+  position    Int     @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+model InvoicePayment {
+  id         String    @id @default(uuid())
+  invoiceId  String
+  amount     Decimal   @db.Decimal(14, 2)
+  paidAt     DateTime  @default(now())
+  method     String?
+  note       String?
+  voidedAt   DateTime?
+  voidReason String?
+  createdAt  DateTime  @default(now())
+
+  attempt PaymentAttempt?
+  invoice Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_payments")
+}
+
+model ContractTemplate {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  body           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contracts    Contract[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("contract_templates")
+}
+
+model Contract {
+  id                String         @id @default(uuid())
+  organizationId    String
+  artistId          String?
+  clientId          String?
+  bookingId         String?
+  quoteId           String?
+  templateId        String?
+  number            Int
+  title             String
+  artistName        String
+  clientName        String
+  clientEmail       String?
+  eventType         String?
+  eventDate         DateTime?
+  venue             String?
+  durationMinutes   Int?
+  currency          String         @default("USD")
+  fee               Decimal        @db.Decimal(14, 2)
+  depositAmount     Decimal        @default(0) @db.Decimal(14, 2)
+  cancellationTerms String?
+  accommodation     String?
+  transport         String?
+  paymentTerms      String?
+  extraTerms        String?
+  body              String
+  status            ContractStatus @default(DRAFT)
+  signedAt          DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  artist       Artist?           @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  client       Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  booking      Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  quote        Quote?            @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  template     ContractTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  emails       EmailMessage[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([artistId])
+  @@map("contracts")
+}
+
+// One press kit per artist. It reuses the artist profile (bio, genres, photo,
+// links, booking contact) and adds the press-specific lists below. Each list is
+// an ordered JSON array: the kit is edited and saved as one document.
+model Epk {
+  id           String   @id @default(uuid())
+  artistId     String   @unique
+  achievements Json     @default("[]") // string[]
+  discography  Json     @default("[]") // { title, kind?, year?, url? }[]
+  performances Json     @default("[]") // { name, location?, year? }[]
+  pressQuotes  Json     @default("[]") // { quote, source, url? }[]
+  gallery      Json     @default("[]") // { url, caption? }[]
+  media        Json     @default("[]") // { title?, url }[]
+  isPublished  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@map("epks")
+}
+
+// An organisation's own merchant credentials: client payments go straight to
+// the artist's account, never through the platform. Paynow issues a separate
+// integration per currency, hence one row per (provider, currency).
+model PaymentAccount {
+  id                      String          @id @default(uuid())
+  organizationId          String
+  provider                PaymentProvider
+  currency                String
+  integrationId           String
+  /// AES-256-GCM ciphertext (see payments/crypto.ts). Never returned by the API.
+  integrationKeyEncrypted String
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attempts     PaymentAttempt[]
+
+  @@unique([organizationId, provider, currency])
+  @@map("payment_accounts")
+}
+
+// One try by a client to pay an invoice online. It becomes an InvoicePayment
+// only once the provider confirms it, and at most once (invoicePaymentId is unique).
+model PaymentAttempt {
+  id                String               @id @default(uuid())
+  organizationId    String
+  invoiceId         String
+  paymentAccountId  String?
+  provider          PaymentProvider
+  currency          String
+  amount            Decimal              @db.Decimal(14, 2)
+  /// Our reference sent to the provider; unique per merchant as Paynow requires.
+  reference         String               @unique
+  status            PaymentAttemptStatus @default(PENDING)
+  providerReference String?
+  pollUrl           String?
+  redirectUrl       String?
+  payerEmail        String?
+  failureReason     String?
+  lastPolledAt      DateTime?
+  completedAt       DateTime?
+  invoicePaymentId  String?              @unique
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice        Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentAccount PaymentAccount? @relation(fields: [paymentAccountId], references: [id], onDelete: SetNull)
+  invoicePayment InvoicePayment? @relation(fields: [invoicePaymentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([invoiceId])
+  @@map("payment_attempts")
+}
+
+// Every email the platform sends, as rendered at the time: the audit log shown on
+// documents, and the source of truth the BullMQ worker delivers from.
+model EmailMessage {
+  id                String      @id @default(uuid())
+  organizationId    String
+  kind              EmailKind
+  toEmail           String
+  toName            String?
+  replyTo           String?
+  subject           String
+  bodyText          String
+  ctaUrl            String?
+  ctaLabel          String?
+  invoiceId         String?
+  quoteId           String?
+  contractId        String?
+  createdById       String?
+  /// Set for automatic emails (receipt:<attempt>, reminder:<invoice>:<day>…) so an event can never send twice.
+  dedupeKey         String?     @unique
+  status            EmailStatus @default(PENDING)
+  attempts          Int         @default(0)
+  lastError         String?
+  providerMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice      Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  quote        Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  contract     Contract?    @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  createdBy    User?        @relation("EmailCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([invoiceId])
+  @@index([quoteId])
+  @@index([contractId])
+  @@index([status])
+  @@map("email_messages")
+}
+
+// The dashboard bell. One row per user so read state is personal.
+model UserNotification {
+  id             String           @id @default(uuid())
+  userId         String
+  organizationId String
+  type           NotificationType
+  title          String
+  body           String?
+  link           String?
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("user_notifications")
+}
+
+// Every AI generation: the audit trail (what was asked, what came back), the
+// usage/cost record, and what the monthly cap counts. AI output is only ever a
+// suggestion; nothing here is applied to business records automatically.
+model AiGeneration {
+  id               String             @id @default(uuid())
+  organizationId   String
+  userId           String?
+  feature          AiFeature
+  /// Which draft/content variant, e.g. INVOICE_FOLLOW_UP, ARTIST_BIO.
+  variant          String?
+  subjectType      String?
+  subjectId        String?
+  instructions     String?
+  model            String
+  status           AiGenerationStatus @default(STREAMING)
+  output           String?
+  stopReason       String?
+  error            String?
+  inputTokens      Int                @default(0)
+  outputTokens     Int                @default(0)
+  cacheReadTokens  Int                @default(0)
+  cacheWriteTokens Int                @default(0)
+  /// Estimated from list prices; the provider's invoice is authoritative.
+  costUsd          Decimal            @default(0) @db.Decimal(12, 6)
+  createdAt        DateTime           @default(now())
+  completedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@map("ai_generations")
+}
+
+// The user's own calendar items (rehearsals, travel, releases, blocked days…).
+// Dates are calendar days (stored at UTC midnight, like booking dates); endDate
+// is inclusive. Times are optional display text, not scheduling data.
+model CalendarEntry {
+  id             String            @id @default(uuid())
+  organizationId String
+  artistId       String?
+  createdById    String?
+  kind           CalendarEntryKind @default(OTHER)
+  title          String
+  startDate      DateTime          @db.Date
+  endDate        DateTime          @db.Date
+  startTime      String?
+  endTime        String?
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  artist       Artist?      @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, startDate])
+  @@map("calendar_entries")
+}
