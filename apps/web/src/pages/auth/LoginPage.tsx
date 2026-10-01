@@ -1,6 +1,6 @@
 import { Mail } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { PasswordField } from '../../components/PasswordField'
 import { Button } from '../../components/ui/button'
 import { extractErrorMessage, useAuth } from '../../lib/AuthContext'
@@ -15,7 +15,9 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   // Why the previous session ended (suspended, expired), shown once.
-  const [notice] = useState(readSessionNotice)
+  const location = useLocation()
+  // A message handed over by the previous page (e.g. after a password reset), else why the last session ended.
+  const [notice] = useState(() => (location.state as { notice?: string } | null)?.notice ?? readSessionNotice())
   useEffect(clearSessionNotice, [])
 
   async function handleSubmit(e: FormEvent) {
@@ -70,9 +72,14 @@ export function LoginPage() {
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-neutral-300">
-            Password
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor="password" className="block text-sm font-medium text-neutral-300">
+              Password
+            </label>
+            <Link to="/forgot-password" className="text-xs font-medium text-brand-orange-light hover:underline">
+              Forgot password?
+            </Link>
+          </div>
           <PasswordField
             id="password"
             required

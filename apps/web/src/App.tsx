@@ -26,6 +26,10 @@ import { AdminBusinessesPage } from './pages/admin/AdminBusinessesPage'
 import { AdminOverviewPage } from './pages/admin/AdminOverviewPage'
 import { AdminSettingsPage } from './pages/admin/AdminSettingsPage'
 import { LoginPage } from './pages/auth/LoginPage'
+import { AcceptInvitePage } from './pages/auth/AcceptInvitePage'
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
+import { VerifyEmailPage } from './pages/auth/VerifyEmailPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 
 function App() {
@@ -34,6 +38,10 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
       <Route path="/a/:slug" element={<PublicArtistPage />} />
       <Route path="/a/:slug/epk" element={<PublicEpkPage />} />
       <Route path="/pay/test-checkout/:attemptId" element={<TestCheckoutPage />} />

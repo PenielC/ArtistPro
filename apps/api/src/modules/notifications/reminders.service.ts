@@ -47,9 +47,16 @@ export class RemindersService {
     this.timeZone = config.get<string>('REMINDERS_TZ') ?? 'Africa/Harare';
   }
 
-  /** The scheduled run: every organisation that has reminders turned on. */
+  /** The scheduled run: every organisation that has reminders turned on and a verified owner to send as. */
   async runForAll(now = new Date()): Promise<ReminderRunResult> {
-    const orgs = await this.prisma.organization.findMany({ where: { reminderEnabled: true, suspendedAt: null }, select: { id: true } });
+    const orgs = await this.prisma.organization.findMany({
+      where: {
+        reminderEnabled: true,
+        suspendedAt: null,
+        users: { some: { role: 'OWNER', emailVerifiedAt: { not: null }, removedAt: null } },
+      },
+      select: { id: true },
+    });
     const total: ReminderRunResult = { sent: 0, skippedNoEmail: 0 };
     for (const org of orgs) {
       try {

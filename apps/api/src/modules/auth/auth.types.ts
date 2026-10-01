@@ -5,6 +5,8 @@ export interface JwtPayload {
   email: string;
   organizationId: string;
   role: UserRole;
+  /** Filled in per request from the database (not in the token), so it is always current. */
+  emailVerified?: boolean;
 }
 
 export interface AuthResult {
@@ -19,6 +21,7 @@ export interface AuthResult {
     organizationId: string;
     organizationName: string;
     organizationCurrency: string;
+    emailVerified: boolean;
     /** Display only (shows the Admin area); the admin API checks the allowlist itself. */
     isPlatformAdmin: boolean;
   };

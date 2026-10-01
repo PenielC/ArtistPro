@@ -221,7 +221,11 @@ export function escapeHtml(text: string): string {
 }
 
 /** Simple, email-client-safe HTML: paragraphs from the text, one button, a footer. Everything user-supplied is escaped. */
-export function renderHtml(email: { bodyText: string; ctaUrl?: string | null; ctaLabel?: string | null }, businessName: string): string {
+export function renderHtml(
+  email: { bodyText: string; ctaUrl?: string | null; ctaLabel?: string | null },
+  businessName: string,
+  footer = `Sent by ${businessName} via ArtBH`,
+): string {
   const paragraphs = email.bodyText
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 16px;line-height:1.55">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
@@ -233,6 +237,6 @@ export function renderHtml(email: { bodyText: string; ctaUrl?: string | null; ct
   return `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#18181b">
 <div style="max-width:600px;margin:0 auto;padding:24px 16px">
 <div style="background:#ffffff;border-radius:12px;padding:28px;font-size:15px">${paragraphs}${button}</div>
-<p style="text-align:center;color:#a1a1aa;font-size:12px;margin:16px 0 0">Sent by ${escapeHtml(businessName)} via ArtBH</p>
+<p style="text-align:center;color:#a1a1aa;font-size:12px;margin:16px 0 0">${escapeHtml(footer)}</p>
 </div></body></html>`;
 }

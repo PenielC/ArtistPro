@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { type AuthUser, getMe, loginUser, registerUser } from './authApi'
+import { type AuthUser, acceptInvitation as acceptInvitationRequest, getMe, loginUser, registerUser } from './authApi'
 import { SESSION_ENDED_EVENT, tokenStorage, type SessionEndReason } from './api'
 import { saveSessionNotice } from './sessionNotice'
 
@@ -16,6 +16,9 @@ interface AuthContextValue {
   }) => Promise<void>
   logout: () => void
   setOrganizationCurrency: (currency: string) => void
+  /** Re-reads the user from the server (after verifying the email, a role change, an ownership transfer). */
+  refreshUser: () => Promise<void>
+  acceptInvitation: (input: { token: string; firstName: string; lastName: string; password: string }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -57,6 +60,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persist(result)
   }
 
+  async function acceptInvitation(input: { token: string; firstName: string; lastName: string; password: string }) {
+    const result = await acceptInvitationRequest(input)
+    persist(result)
+  }
+
+  async function refreshUser() {
+    const fresh = await getMe()
+    setUser((current) => {
+      if (!current) return current
+      localStorage.setItem(USER_KEY, JSON.stringify(fresh))
+      return fresh
+    })
+  }
+
   function logout() {
     tokenStorage.clear()
     localStorage.removeItem(USER_KEY)
@@ -75,21 +92,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(SESSION_ENDED_EVENT, onEnded)
   }, [])
 
-  // Sessions saved before the admin flag existed learn it without logging in again.
-  const needsAdminFlag = !!user && user.isPlatformAdmin === undefined
+  // Once per page load, pick up anything that changed on the server since sign-in: a new role, a
+  // verified email, the admin flag. The stored copy keeps the page usable until then.
+  const signedInId = user?.id
   useEffect(() => {
-    if (!needsAdminFlag) return
+    if (!signedInId) return
     getMe()
-      .then(({ isPlatformAdmin }) =>
+      .then((fresh) =>
         setUser((current) => {
-          if (!current) return current
-          const next = { ...current, isPlatformAdmin }
-          localStorage.setItem(USER_KEY, JSON.stringify(next))
-          return next
+          if (!current || current.id !== fresh.id) return current
+          localStorage.setItem(USER_KEY, JSON.stringify(fresh))
+          return fresh
         }),
       )
       .catch(() => {})
-  }, [needsAdminFlag])
+  }, [signedInId])
 
   function setOrganizationCurrency(currency: string) {
     setUser((current) => {
@@ -101,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, setOrganizationCurrency }}>
+    <AuthContext.Provider value={{ user, login, register, logout, setOrganizationCurrency, refreshUser, acceptInvitation }}>
       {children}
     </AuthContext.Provider>
   )

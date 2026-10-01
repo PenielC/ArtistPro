@@ -20,16 +20,30 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   /**
-   * One small lookup per request so a suspension takes effect immediately, not when the
-   * access token expires. It also rejects tokens of users that no longer exist.
+   * One small lookup per request so changes take effect immediately, not when the access token
+   * expires: a suspension, a removed member, a new role, a just-verified email. The role and email
+   * returned are the database's, never the token's.
    */
   async validate(payload: JwtPayload): Promise<JwtPayload> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { organization: { select: { suspendedAt: true } } },
+      select: {
+        email: true,
+        role: true,
+        organizationId: true,
+        emailVerifiedAt: true,
+        removedAt: true,
+        organization: { select: { suspendedAt: true } },
+      },
     });
-    if (!user) throw new UnauthorizedException();
+    if (!user || user.removedAt) throw new UnauthorizedException();
     if (user.organization.suspendedAt) throw suspendedUnauthorized();
-    return payload;
+    return {
+      sub: payload.sub,
+      email: user.email,
+      organizationId: user.organizationId,
+      role: user.role,
+      emailVerified: user.emailVerifiedAt !== null,
+    };
   }
 }

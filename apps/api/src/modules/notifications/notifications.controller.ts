@@ -7,6 +7,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { VerifiedEmailGuard } from '../auth/guards/verified-email.guard';
 import { ComposeQueryDto, EmailListQueryDto, ReminderSettingsDto, SendDocumentEmailDto } from './dto/notifications.dto';
 import { EmailService } from './email.service';
 import { InboxService } from './inbox.service';
@@ -29,6 +30,7 @@ export class NotificationsController {
   }
 
   @Post('emails')
+  @UseGuards(VerifiedEmailGuard)
   send(@CurrentUser() user: JwtPayload, @Body() dto: SendDocumentEmailDto) {
     return this.emails.sendDocument(user.organizationId, user.sub, dto);
   }
@@ -39,6 +41,7 @@ export class NotificationsController {
   }
 
   @Post('emails/:id/retry')
+  @UseGuards(VerifiedEmailGuard)
   retry(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.emails.retry(user.organizationId, id);
   }
@@ -64,6 +67,7 @@ export class NotificationsController {
   /** Runs this organisation's overdue reminders now (the schedule also runs them daily). */
   @Roles(UserRole.OWNER, UserRole.FINANCE)
   @Post('reminders/run')
+  @UseGuards(VerifiedEmailGuard)
   runReminders(@CurrentUser() user: JwtPayload) {
     return this.reminders.runForOrganization(user.organizationId);
   }

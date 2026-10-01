@@ -69,10 +69,10 @@ async function main() {
     data: { name: 'Moyo Creative Management', currency: 'USD', reminderEnabled: true, reminderDays: [1, 7, 14] },
   });
   const owner = await prisma.user.create({
-    data: { organizationId: org.id, email: DEMO_EMAIL, passwordHash, firstName: 'Rudo', lastName: 'Moyo', role: 'OWNER' },
+    data: { organizationId: org.id, email: DEMO_EMAIL, passwordHash, firstName: 'Rudo', lastName: 'Moyo', role: 'OWNER', emailVerifiedAt: new Date() },
   });
   const finance = await prisma.user.create({
-    data: { organizationId: org.id, email: FINANCE_EMAIL, passwordHash, firstName: 'Tapiwa', lastName: 'Sibanda', role: 'FINANCE' },
+    data: { organizationId: org.id, email: FINANCE_EMAIL, passwordHash, firstName: 'Tapiwa', lastName: 'Sibanda', role: 'FINANCE', emailVerifiedAt: new Date() },
   });
   const orgId = org.id;
 

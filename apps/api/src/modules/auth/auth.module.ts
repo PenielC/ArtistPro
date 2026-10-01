@@ -8,6 +8,10 @@ import { OrganizationController } from './organization.controller';
 import { OrganizationService } from './organization.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
+import { VerifiedEmailGuard } from './guards/verified-email.guard';
+import { AuthMailService } from './auth-mail.service';
+import { TeamController } from './team.controller';
+import { TeamService } from './team.service';
 
 @Module({
   imports: [
@@ -24,8 +28,16 @@ import { RolesGuard } from './guards/roles.guard';
       }),
     }),
   ],
-  controllers: [AuthController, OrganizationController],
-  providers: [AuthService, OrganizationService, JwtStrategy, RolesGuard],
-  exports: [AuthService],
+  controllers: [AuthController, OrganizationController, TeamController],
+  providers: [
+    AuthService,
+    OrganizationService,
+    TeamService,
+    AuthMailService,
+    JwtStrategy,
+    RolesGuard,
+    VerifiedEmailGuard,
+  ],
+  exports: [AuthService, VerifiedEmailGuard],
 })
 export class AuthModule {}

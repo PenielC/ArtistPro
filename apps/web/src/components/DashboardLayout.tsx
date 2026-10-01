@@ -20,6 +20,7 @@ import {
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { AnnouncementBanner } from './AnnouncementBanner'
+import { VerifyEmailBanner } from './VerifyEmailBanner'
 import { Logo } from './Logo'
 import { NotificationBell } from './NotificationBell'
 import { useAuth } from '../lib/AuthContext'
@@ -136,6 +137,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       <main className="min-w-0 flex-1 overflow-y-auto">
         <AnnouncementBanner />
+        <VerifyEmailBanner />
         {children}
       </main>
     </div>

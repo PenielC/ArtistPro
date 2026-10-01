@@ -14,6 +14,11 @@ enum UserRole {
   FINANCE
 }
 
+enum AuthTokenPurpose {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
 enum CalendarEntryKind {
   REHEARSAL
   STUDIO
@@ -135,6 +140,7 @@ model Organization {
   updatedAt       DateTime  @updatedAt
 
   users             User[]
+  invitations       Invitation[]
   artists           Artist[]
   bookings          Booking[]
   clients           Client[]
@@ -163,6 +169,11 @@ model User {
   role              UserRole @default(OWNER)
   /// Secret for this user's read-only iCal subscription URL; null until they ask for one.
   calendarFeedToken String?  @unique
+  /// Set when the user proves they own the address (verification link, password reset or accepted invite).
+  emailVerifiedAt   DateTime?
+  /// Set when an owner removes the member. Their email is released and they can no longer sign in;
+  /// the row stays so their past work keeps its author.
+  removedAt         DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -172,9 +183,49 @@ model User {
   notifications   UserNotification[]
   aiGenerations   AiGeneration[]
   calendarEntries CalendarEntry[]
+  authTokens      AuthToken[]
+  invitationsSent Invitation[]       @relation("InvitedBy")
 
   @@index([organizationId])
   @@map("users")
+}
+
+/// A single-use link sent by email (password reset, email verification). Only the SHA-256 of the
+/// token is stored, so a database leak can't be turned into working links.
+model AuthToken {
+  id        String           @id @default(uuid())
+  userId    String
+  purpose   AuthTokenPurpose
+  tokenHash String           @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+  @@map("auth_tokens")
+}
+
+/// An invitation to join a business. Accepting creates the invitee's account with the given role.
+model Invitation {
+  id             String    @id @default(uuid())
+  organizationId String
+  email          String
+  role           UserRole
+  /// SHA-256 of the link's token; the token itself is only ever in the email.
+  tokenHash      String    @unique
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, email])
+  @@map("invitations")
 }
 
 model RefreshToken {

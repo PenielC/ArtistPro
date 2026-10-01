@@ -6,6 +6,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { VerifiedEmailGuard } from '../auth/guards/verified-email.guard';
 import { SavePaymentAccountDto } from './dto/payments.dto';
 import { PaymentsService } from './payments.service';
 
@@ -44,6 +45,7 @@ export class PaymentsController {
   }
 
   @Post('invoices/:invoiceId/link')
+  @UseGuards(VerifiedEmailGuard)
   enableLink(@CurrentUser() user: JwtPayload, @Param('invoiceId') invoiceId: string) {
     return this.paymentsService.enableLink(user.organizationId, invoiceId);
   }

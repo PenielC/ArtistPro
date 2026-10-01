@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { ReminderSettingsCard } from '../components/ReminderSettingsCard'
+import { TeamCard } from '../components/TeamCard'
 import { Button } from '../components/ui/button'
 import { updateOrganizationCurrency } from '../lib/authApi'
 import { extractErrorMessage, useAuth } from '../lib/AuthContext'
@@ -75,6 +76,8 @@ export function SettingsPage() {
             recorded against it.
           </p>
         </div>
+
+        <TeamCard />
 
         <ReminderSettingsCard />
       </div>
