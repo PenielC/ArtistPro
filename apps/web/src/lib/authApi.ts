@@ -11,6 +11,8 @@ export interface AuthUser {
   organizationId: string
   organizationName: string
   organizationCurrency: string
+  /** Shows the Platform admin area. The admin API checks the allowlist itself on every call. */
+  isPlatformAdmin?: boolean
 }
 
 export interface AuthResult {
@@ -32,6 +34,11 @@ export async function registerUser(input: {
 
 export async function loginUser(input: { email: string; password: string }): Promise<AuthResult> {
   const { data } = await api.post<AuthResult>('/auth/login', input)
+  return data
+}
+
+export async function getMe(): Promise<{ isPlatformAdmin: boolean }> {
+  const { data } = await api.get<{ isPlatformAdmin: boolean }>('/auth/me')
   return data
 }
 

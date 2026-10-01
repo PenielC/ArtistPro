@@ -130,7 +130,7 @@ describe('EpkService', () => {
     const result = await service.findPublic('tamy-moyo');
 
     expect(prisma.epk.findFirst).toHaveBeenCalledWith({
-      where: { isPublished: true, artist: { slug: 'tamy-moyo' } },
+      where: { isPublished: true, artist: { slug: 'tamy-moyo', organization: { suspendedAt: null } } },
       include: { artist: { select: PUBLIC_ARTIST_FIELDS } },
     });
     expect(result.artist).toEqual({ name: 'Tamy Moyo' });

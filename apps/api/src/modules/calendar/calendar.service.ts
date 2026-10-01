@@ -525,9 +525,9 @@ export class CalendarService {
   async feed(token: string, now = new Date()): Promise<string | null> {
     const user = await this.prisma.user.findUnique({
       where: { calendarFeedToken: token },
-      select: { organizationId: true, organization: { select: { name: true } } },
+      select: { organizationId: true, organization: { select: { name: true, suspendedAt: true } } },
     });
-    if (!user) return null;
+    if (!user || user.organization.suspendedAt) return null;
     const today = todayIn(this.timeZone, now);
     const items = await this.collect(user.organizationId, addDays(today, -FEED_PAST_DAYS), addDays(today, FEED_FUTURE_DAYS), undefined, now);
     return buildIcs(

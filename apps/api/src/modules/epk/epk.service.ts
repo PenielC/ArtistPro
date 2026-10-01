@@ -114,7 +114,7 @@ export class EpkService {
     // Published kit only. Deliberately independent of the profile's own toggle:
     // publishing the kit is an explicit choice to share what's in it.
     const epk = await this.prisma.epk.findFirst({
-      where: { isPublished: true, artist: { slug } },
+      where: { isPublished: true, artist: { slug, organization: { suspendedAt: null } } },
       include: { artist: { select: PUBLIC_ARTIST_FIELDS } },
     });
     if (!epk) throw new NotFoundException('Press kit not found.');

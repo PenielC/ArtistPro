@@ -49,7 +49,7 @@ export class RemindersService {
 
   /** The scheduled run: every organisation that has reminders turned on. */
   async runForAll(now = new Date()): Promise<ReminderRunResult> {
-    const orgs = await this.prisma.organization.findMany({ where: { reminderEnabled: true }, select: { id: true } });
+    const orgs = await this.prisma.organization.findMany({ where: { reminderEnabled: true, suspendedAt: null }, select: { id: true } });
     const total: ReminderRunResult = { sent: 0, skippedNoEmail: 0 };
     for (const org of orgs) {
       try {

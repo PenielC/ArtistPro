@@ -17,6 +17,8 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AiModule } from './modules/ai/ai.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PlatformModule } from './modules/platform/platform.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -25,6 +27,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     EventEmitterModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
+    PlatformModule,
     HealthModule,
     AuthModule,
     ArtistsModule,
@@ -38,6 +41,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     PaymentsModule,
     AiModule,
     NotificationsModule,
+    AdminModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

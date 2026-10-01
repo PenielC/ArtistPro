@@ -1,9 +1,10 @@
 import { Mail } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PasswordField } from '../../components/PasswordField'
 import { Button } from '../../components/ui/button'
 import { extractErrorMessage, useAuth } from '../../lib/AuthContext'
+import { clearSessionNotice, readSessionNotice } from '../../lib/sessionNotice'
 import { AuthLayout } from './AuthLayout'
 
 export function LoginPage() {
@@ -13,6 +14,9 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Why the previous session ended (suspended, expired), shown once.
+  const [notice] = useState(readSessionNotice)
+  useEffect(clearSessionNotice, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -42,6 +46,11 @@ export function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {notice && (
+          <p className="rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200" role="status" data-testid="session-notice">
+            {notice}
+          </p>
+        )}
         <div>
           <label htmlFor="email" className="mb-1 block text-sm font-medium text-neutral-300">
             Email Address

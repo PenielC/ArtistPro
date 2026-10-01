@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Inject, Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
-import { AiFeature } from '@prisma/client';
+import { AiFeature, Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { PreparedGeneration } from './ai-context.service';
 import { AI_PROVIDER, AiUnavailableError, type AiProvider } from './ai.types';
@@ -9,6 +9,11 @@ export type AiStreamEvent =
   | { type: 'text'; text: string }
   | { type: 'done'; generationId: string; truncated: boolean; usage: { used: number; limit: number } }
   | { type: 'error'; message: string };
+
+/** Generations that count toward the cap: everything except attempts that failed without producing output. */
+export const COUNTED_GENERATION = {
+  OR: [{ status: { not: 'FAILED' } }, { outputTokens: { gt: 0 } }],
+} satisfies Prisma.AiGenerationWhereInput;
 
 /** First day of the current calendar month, UTC: the cap resets then. */
 export function monthStart(now: Date): Date {
@@ -24,14 +29,9 @@ export class AiService {
     @Optional() @Inject(AI_PROVIDER) private readonly provider: AiProvider | null,
   ) {}
 
-  /** Generations that count toward the cap: everything except attempts that failed without producing output. */
   private countThisMonth(organizationId: string, now: Date) {
     return this.prisma.aiGeneration.count({
-      where: {
-        organizationId,
-        createdAt: { gte: monthStart(now) },
-        OR: [{ status: { not: 'FAILED' } }, { outputTokens: { gt: 0 } }],
-      },
+      where: { organizationId, createdAt: { gte: monthStart(now) }, ...COUNTED_GENERATION },
     });
   }
 

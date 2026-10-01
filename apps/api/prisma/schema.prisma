@@ -24,6 +24,18 @@ enum CalendarEntryKind {
   OTHER
 }
 
+enum AdminAction {
+  ORGANIZATION_SUSPENDED
+  ORGANIZATION_REACTIVATED
+  ORGANIZATION_AI_LIMIT_CHANGED
+  PLATFORM_CONFIG_UPDATED
+}
+
+enum AnnouncementTone {
+  INFO
+  WARNING
+}
+
 enum AiFeature {
   BRIEFING
   DRAFT
@@ -108,16 +120,19 @@ enum BookingStatus {
 }
 
 model Organization {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   name            String
-  currency        String   @default("USD")
+  currency        String    @default("USD")
   // Overdue-invoice reminders: off until the owner turns them on; sent N days after the due date.
-  reminderEnabled Boolean  @default(false)
-  reminderDays    Int[]    @default([1, 7, 14])
+  reminderEnabled Boolean   @default(false)
+  reminderDays    Int[]     @default([1, 7, 14])
   // AI generations allowed per calendar month (UTC). Plan tiers can raise this later.
-  aiMonthlyLimit  Int      @default(100)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  aiMonthlyLimit  Int       @default(100)
+  // Set by a platform admin: members are locked out and public pages go dark. Data is kept.
+  suspendedAt     DateTime?
+  suspendedReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   users             User[]
   artists           Artist[]
@@ -133,6 +148,7 @@ model Organization {
   notifications     UserNotification[]
   aiGenerations     AiGeneration[]
   calendarEntries   CalendarEntry[]
+  adminAuditLogs    AdminAuditLog[]
 
   @@map("organizations")
 }
@@ -172,6 +188,7 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([createdAt])
   @@map("refresh_tokens")
 }
 
@@ -634,4 +651,39 @@ model CalendarEntry {
 
   @@index([organizationId, startDate])
   @@map("calendar_entries")
+}
+
+// Platform-wide settings, edited by platform admins. Always exactly one row (id 1).
+model PlatformConfig {
+  id                    Int              @id @default(1)
+  signupsEnabled        Boolean          @default(true)
+  /// AI generations per month given to businesses that sign up from now on.
+  defaultAiMonthlyLimit Int              @default(100)
+  /// Shown to every signed-in user while set.
+  announcement          String?
+  announcementTone      AnnouncementTone @default(INFO)
+  updatedByEmail        String?
+  updatedAt             DateTime         @updatedAt
+
+  @@map("platform_config")
+}
+
+// Every change a platform admin makes, kept even if the business is later deleted.
+model AdminAuditLog {
+  id               String      @id @default(uuid())
+  adminUserId      String?
+  adminEmail       String
+  action           AdminAction
+  organizationId   String?
+  /// The business's name at the time, so the entry still reads well if it's renamed or deleted.
+  organizationName String?
+  /// What changed, e.g. { from, to } or { reason }.
+  details          Json        @default("{}")
+  createdAt        DateTime    @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([organizationId, createdAt])
+  @@map("admin_audit_logs")
 }

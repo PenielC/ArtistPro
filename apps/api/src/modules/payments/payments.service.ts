@@ -211,9 +211,13 @@ export class PaymentsService {
   private async invoiceByToken(token: string) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { publicToken: token },
-      include: { ...INVOICE_INCLUDE, organization: { select: { name: true } } },
+      include: { ...INVOICE_INCLUDE, organization: { select: { name: true, suspendedAt: true } } },
     });
-    if (!invoice) throw new NotFoundException('This payment link is not valid. Please ask for a new one.');
+    // A suspended business's links behave like revoked ones. (Paynow's result callback is separate and
+    // still records payments already made, so no money goes unaccounted for.)
+    if (!invoice || invoice.organization.suspendedAt) {
+      throw new NotFoundException('This payment link is not valid. Please ask for a new one.');
+    }
     return invoice;
   }
 

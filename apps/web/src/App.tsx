@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import { AdminRoute } from './components/AdminRoute'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AiAssistantPage } from './pages/AiAssistantPage'
 import { ArtistsPage } from './pages/ArtistsPage'
@@ -19,6 +20,11 @@ import { PublicEpkPage } from './pages/PublicEpkPage'
 import { QuotesPage } from './pages/QuotesPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TestCheckoutPage } from './pages/TestCheckoutPage'
+import { AdminAuditPage } from './pages/admin/AdminAuditPage'
+import { AdminBusinessPage } from './pages/admin/AdminBusinessPage'
+import { AdminBusinessesPage } from './pages/admin/AdminBusinessesPage'
+import { AdminOverviewPage } from './pages/admin/AdminOverviewPage'
+import { AdminSettingsPage } from './pages/admin/AdminSettingsPage'
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 
@@ -47,6 +53,13 @@ function App() {
         <Route path="/epk/:artistId" element={<EpkEditorPage />} />
         <Route path="/epk/:artistId/preview" element={<EpkPreviewPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+      </Route>
+      <Route element={<AdminRoute />}>
+        <Route path="/admin" element={<AdminOverviewPage />} />
+        <Route path="/admin/businesses" element={<AdminBusinessesPage />} />
+        <Route path="/admin/businesses/:id" element={<AdminBusinessPage />} />
+        <Route path="/admin/settings" element={<AdminSettingsPage />} />
+        <Route path="/admin/audit" element={<AdminAuditPage />} />
       </Route>
     </Routes>
   )

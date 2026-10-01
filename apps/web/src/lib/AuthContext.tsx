@@ -1,7 +1,8 @@
 import axios from 'axios'
-import { createContext, useContext, useState, type ReactNode } from 'react'
-import { type AuthUser, loginUser, registerUser } from './authApi'
-import { tokenStorage } from './api'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { type AuthUser, getMe, loginUser, registerUser } from './authApi'
+import { SESSION_ENDED_EVENT, tokenStorage, type SessionEndReason } from './api'
+import { saveSessionNotice } from './sessionNotice'
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -61,6 +62,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USER_KEY)
     setUser(null)
   }
+
+  // The API layer ends the session when it can't be renewed (or the business was suspended).
+  useEffect(() => {
+    const onEnded = (e: Event) => {
+      const reason = (e as CustomEvent<SessionEndReason>).detail
+      saveSessionNotice(reason)
+      localStorage.removeItem(USER_KEY)
+      setUser(null)
+    }
+    window.addEventListener(SESSION_ENDED_EVENT, onEnded)
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, onEnded)
+  }, [])
+
+  // Sessions saved before the admin flag existed learn it without logging in again.
+  const needsAdminFlag = !!user && user.isPlatformAdmin === undefined
+  useEffect(() => {
+    if (!needsAdminFlag) return
+    getMe()
+      .then(({ isPlatformAdmin }) =>
+        setUser((current) => {
+          if (!current) return current
+          const next = { ...current, isPlatformAdmin }
+          localStorage.setItem(USER_KEY, JSON.stringify(next))
+          return next
+        }),
+      )
+      .catch(() => {})
+  }, [needsAdminFlag])
 
   function setOrganizationCurrency(currency: string) {
     setUser((current) => {

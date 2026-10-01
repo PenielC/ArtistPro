@@ -10,6 +10,7 @@ import {
   Receipt,
   ScrollText,
   Settings,
+  ShieldCheck,
   Sparkles,
   Users,
   Wallet,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
+import { AnnouncementBanner } from './AnnouncementBanner'
 import { Logo } from './Logo'
 import { NotificationBell } from './NotificationBell'
 import { useAuth } from '../lib/AuthContext'
@@ -100,6 +102,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
 
         <div className="mt-8 flex flex-col gap-3">
+          {user?.isPlatformAdmin && (
+            <NavLink to="/admin" onClick={close} className={linkClass} data-testid="nav-admin">
+              <ShieldCheck size={16} />
+              Platform admin
+            </NavLink>
+          )}
           <NavLink to="/settings" onClick={close} className={linkClass}>
             <Settings size={16} />
             Settings
@@ -126,7 +134,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto">
+        <AnnouncementBanner />
+        {children}
+      </main>
     </div>
   )
 }

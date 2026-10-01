@@ -7,11 +7,15 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { JwtPayload } from './auth.types';
+import { PlatformAdmins } from '../platform/platform-admins';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly platformAdmins: PlatformAdmins,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -31,6 +35,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@CurrentUser() user: JwtPayload) {
-    return user;
+    return { ...user, isPlatformAdmin: this.platformAdmins.isAdmin(user.email) };
   }
 }

@@ -1,9 +1,11 @@
+import { useQuery } from '@tanstack/react-query'
 import { Building2, Mail, User } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PasswordField } from '../../components/PasswordField'
 import { Button } from '../../components/ui/button'
 import { extractErrorMessage, useAuth } from '../../lib/AuthContext'
+import { getPublicPlatform } from '../../lib/platformApi'
 import { AuthLayout } from './AuthLayout'
 
 export function RegisterPage() {
@@ -16,6 +18,8 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { data: platform } = useQuery({ queryKey: ['public-platform'], queryFn: getPublicPlatform, staleTime: 60_000 })
+  const paused = platform?.signupsEnabled === false
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -127,11 +131,16 @@ export function RegisterPage() {
           />
         </div>
 
+        {paused && (
+          <p className="rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200" role="status" data-testid="signups-paused">
+            New sign-ups are paused at the moment. Please check back soon.
+          </p>
+        )}
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         <Button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || paused}
           className="mt-2 h-11 rounded-lg bg-brand-orange text-sm font-semibold text-white hover:bg-brand-orange/90"
         >
           {isSubmitting ? 'Creating account…' : 'Create Account'}

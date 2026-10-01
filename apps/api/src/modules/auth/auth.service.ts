@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -8,6 +9,9 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { PlatformAdmins } from '../platform/platform-admins';
+import { PlatformConfigService } from '../platform/platform-config.service';
+import { SIGNUPS_PAUSED, suspendedForbidden } from '../platform/suspension';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthResult, JwtPayload } from './auth.types';
@@ -20,9 +24,21 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly platformConfig: PlatformConfigService,
+    private readonly platformAdmins: PlatformAdmins,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResult> {
+    const platform = await this.platformConfig.get();
+    if (!platform.signupsEnabled) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'Forbidden',
+        code: SIGNUPS_PAUSED,
+        message: 'New sign-ups are paused at the moment. Please try again later.',
+      });
+    }
+
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -33,7 +49,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
     const organization = await this.prisma.organization.create({
-      data: { name: dto.organizationName },
+      data: { name: dto.organizationName, aiMonthlyLimit: platform.defaultAiMonthlyLimit },
     });
 
     const user = await this.prisma.user.create({
@@ -68,6 +84,8 @@ export class AuthService {
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid email or password.');
     }
+    // Checked only after the password, so a suspension isn't revealed to someone guessing.
+    if (user.organization.suspendedAt) throw suspendedForbidden();
 
     return this.issueTokens(
       user.id,
@@ -101,6 +119,7 @@ export class AuthService {
     });
 
     const { user } = existingToken;
+    if (user.organization.suspendedAt) throw suspendedForbidden();
 
     return this.issueTokens(
       user.id,
@@ -153,6 +172,7 @@ export class AuthService {
         organizationId,
         organizationName,
         organizationCurrency,
+        isPlatformAdmin: this.platformAdmins.isAdmin(email),
       },
     };
   }

@@ -136,7 +136,7 @@ export class ArtistsService {
 
   async findPublic(slug: string) {
     const artist = await this.prisma.artist.findFirst({
-      where: { slug, isPublished: true },
+      where: { slug, isPublished: true, organization: { suspendedAt: null } },
       select: { ...PUBLIC_ARTIST_FIELDS, epk: { select: { isPublished: true } } },
     });
     // Unpublished and non-existent look identical, so drafts can't be discovered by probing slugs.

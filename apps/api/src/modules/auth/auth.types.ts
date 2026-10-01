@@ -19,5 +19,7 @@ export interface AuthResult {
     organizationId: string;
     organizationName: string;
     organizationCurrency: string;
+    /** Display only (shows the Admin area); the admin API checks the allowlist itself. */
+    isPlatformAdmin: boolean;
   };
 }

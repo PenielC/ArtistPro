@@ -185,13 +185,13 @@ describe('ArtistsService', () => {
   });
 
   describe('findPublic', () => {
-    it('only returns published profiles, selecting public fields only', async () => {
+    it('only returns published profiles of active businesses, selecting public fields only', async () => {
       prisma.artist.findFirst.mockResolvedValue({ name: 'Tamy Moyo', epk: null });
 
       const result = await service.findPublic('tamy-moyo');
 
       expect(prisma.artist.findFirst).toHaveBeenCalledWith({
-        where: { slug: 'tamy-moyo', isPublished: true },
+        where: { slug: 'tamy-moyo', isPublished: true, organization: { suspendedAt: null } },
         select: { ...PUBLIC_ARTIST_FIELDS, epk: { select: { isPublished: true } } },
       });
       expect(result).toEqual({ name: 'Tamy Moyo', hasEpk: false });

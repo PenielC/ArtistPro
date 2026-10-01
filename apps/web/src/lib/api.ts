@@ -45,6 +45,18 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+export type SessionEndReason = 'suspended' | 'expired'
+export const SESSION_ENDED_EVENT = 'artbh:session-ended'
+
+/** Tells the app (AuthContext) that this browser's session is over, so it can log out and say why. */
+function endSession(reason: SessionEndReason) {
+  tokenStorage.clear()
+  window.dispatchEvent(new CustomEvent<SessionEndReason>(SESSION_ENDED_EVENT, { detail: reason }))
+}
+
+const isSuspension = (error: unknown) =>
+  axios.isAxiosError(error) && (error.response?.data as { code?: string } | undefined)?.code === 'ORGANIZATION_SUSPENDED'
+
 let refreshPromise: Promise<string | null> | null = null
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -61,6 +73,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    // The business was suspended: no point refreshing (its sessions were revoked too).
+    if (isSuspension(error)) {
+      endSession('suspended')
+      return Promise.reject(error)
+    }
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       try {
@@ -72,8 +89,8 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
           return api(originalRequest)
         }
-      } catch {
-        tokenStorage.clear()
+      } catch (refreshError) {
+        endSession(isSuspension(refreshError) ? 'suspended' : 'expired')
       }
     }
     return Promise.reject(error)
